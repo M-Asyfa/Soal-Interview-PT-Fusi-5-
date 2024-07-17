@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>To-Do List</title>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        .completed { text-decoration: line-through; }
+        .task-item { display: flex; align-items: center; }
+        .task-item button { margin-left: 10px; }
+    </style>
+</head>
+<body>
+<h1>To-Do List</h1>
+<form id="task-form">
+    <input type="text" id="task-input" placeholder="Add a new task">
+    <button type="submit">Add Task</button>
+</form>
+<ul id="task-list"></ul>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const taskForm = document.getElementById('task-form');
+        const taskInput = document.getElementById('task-input');
+        const taskList = document.getElementById('task-list');
+        const updateForm = document.getElementById('update-form');
+        const updateInput = document.getElementById('update-input');
+        const closeModal = document.getElementById('close-modal');
+        let currentTaskId;
+
+        // Fetch tasks
+        fetch('/api/tasks')
+            .then(response => response.json())
+            .then(tasks => {
+                tasks.forEach(task => {
+                    addTaskToDOM(task);
+                });
+            })
+            .catch(error => console.error('Error fetching tasks:', error));
+
+        // Add task
+        taskForm.addEventListener('submit', function(event) {
+            event.preventDefault();
+            const description = taskInput.value.trim();
+            if (description) {
+                fetch('/api/tasks', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ description: description, completed: false })
+                })
+                .then(response => response.json())
+                .then(task => {
+                    addTaskToDOM(task);
+                    taskInput.value = '';
+                })
+                .catch(error => console.error('Error adding task:', error));
+            }
+        });
+
+        // Add task to DOM
+        function addTaskToDOM(task) {
+            const li = document.createElement('li');
+            li.classList.add('task-item');
+            li.dataset.id = task.id;
+
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.checked = task.completed;
+            checkbox.addEventListener('change', function() {
+                fetch(`/api/tasks/${task.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ description: task.description, completed: checkbox.checked })
+                })
+                .then(response => response.json())
+                .then(updatedTask => {
+                    task.completed = updatedTask.completed;
+                    span.classList.toggle('completed', task.completed);
+                })
+                .catch(error => console.error('Error updating task:', error));
+            });
+
+            const span = document.createElement('span');
+            span.textContent = task.description;
+            if (task.completed) {
+                span.classList.add('completed');
+            }
+
+            const deleteButton = document.createElement('button');
+            deleteButton.textContent = 'Delete';
+            deleteButton.addEventListener('click', function() {
+                fetch(`/api/tasks/${task.id}`, {
+                    method: 'DELETE'
+                })
+                .then(() => {
+                    taskList.removeChild(li);
+                })
+                .catch(error => console.error('Error deleting task:', error));
+            });
+
+            li.appendChild(checkbox);
+            li.appendChild(span);
+            li.appendChild(deleteButton);
+            taskList.appendChild(li);
+        }
+    });
+</script>
+</body>
+</html>
